@@ -134,5 +134,3 @@ password_and_salt = hash_password(get_valid_password())
 # add new credentials to dictionary and output
 add_to_dictionary(credentials_dictionary, username, password_and_salt[0], password_and_salt[1])
 output_credentials(password_file_path, credentials_dictionary)
-
-# Implement a better salt solution
