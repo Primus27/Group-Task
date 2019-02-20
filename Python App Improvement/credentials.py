@@ -11,126 +11,136 @@ username2:password2:salt
 
 import hashlib
 import random
+import tkinter
+import tkinter.ttk
+import tkinter.scrolledtext
+
+class Credentials:
+    def __init__(self):
+        self.cred_dict = {}
+        self.file_path = "default.txt"
+
+    def is_valid_username(self, user_name):
+        """
+        Prompt user for username, checking that a record doesn't already exist
+        :param user_name: the requested username
+        :return: bool
+        """
+        return len(user_name) > 0 and not self.cred_dict[user_name]
+
+    @staticmethod
+    def is_valid_password(password_orig, password_check):
+        """
+        Checks the password fields are not blank and that they match
+        :param password_orig: first field value
+        :param password_check: confirmation field value
+        :return: boolean
+        """
+        return len(password_orig) > 0 and len(password_check) and password_orig == password_check
+
+    @staticmethod
+    def hash_password(pwd):
+        """
+        :param pwd: the plaintext password
+        :return: tuple of (hashed password, salt)
+        """
+
+        salt = random.randint(1000, 1000000)
+        hashed_password = hashlib.sha512(pwd + salt).hexdigest()
+
+        return hashed_password, salt
+
+    def load_credentials(self):
+        """
+        Reads credentials from file then stores them in a dictionary
+        Assumes that the format for each line is
+        username:password:salt
+        Will record the latest duplicate entry and discard the others
+        :param file_path: path to credentials file
+        """
+
+        try:
+            with open(self.file_path, "r") as file:
+                for line in file:
+                    values = line.split(":")
+                    self.cred_dict[values[0]] = values[1], values[2]
+        except OSError as e:
+            print("Could not read from file: {}".format(self.file_path))
+            pass
+
+    def output_credentials(self):
+        """
+        Open/Create file and output credentials
+        """
+        try:
+            with open(self.file_path, "w") as f:
+                for key, value in self.cred_dict.items():
+                    f.write("{}:{}:{}".format(key, value[0], value[1]))
+        except OSError as e:
+            print("Could not write to file: {}".format(self.file_path))
+            pass
+
+    def add_to_dictionary(self, user, pwd, salt):
+        """
+        Simply adds the values to the dictionary, will replace an existing record with the same username
+
+        :param user: username
+        :param pwd: hashed password
+        :param salt: the salt
+        """
+        self.cred_dict[user] = pwd, salt
 
 
-def get_valid_username(cred_dict):
-    """
-    Prompt user for username, checking that a record doesn't already exist
-    :param cred_dict: the existing credentials dictionary
-    :return: the username
-    """
-    prompt_string = "Enter the desired username: "
-    user_name = input(prompt_string)
+class UI(tkinter.Frame):
+    def set_file_path(self):
+        # set file path in credentials
+        if len(self.file_input.get()) > 0:
+            self.credentials.file_path = self.file_input.get()
+            self.credentials.load_credentials()
+            print(self.credentials.cred_dict)
+            self.debug_box.insert(tkinter.END, str(self.credentials.cred_dict))
 
-    while not user_name:
-        print("Username cannot be empty.")
-        user_name = input(prompt_string)
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.credentials = Credentials()
+        self.master = master
+        self.file_caption = tkinter.Label(master, text="Load File", font="Helvetica 14")
+        self.file_caption.grid(row=1, column=1, sticky="w")
+        self.file_label = tkinter.Label(master, text="Filename")
+        self.file_label.grid(row=2, column=1, sticky="w", padx=10)
+        self.file_input = tkinter.Entry(master)
+        self.file_input.grid(row=3, column=1, sticky="w", padx=10)
+        self.file_button = tkinter.Button(master, text="Load", command=self.set_file_path)
+        self.file_button.grid(row=3, column=2, sticky="w")
+        self.separator = tkinter.ttk.Separator(master, orient="horizontal")
+        self.separator.grid(row=4, column=1, columnspan=3, sticky="ew", pady=15, padx=10)
 
-    while user_name in cred_dict.keys():
-        print("Username already exists.")
-        user_name = input(prompt_string)
-
-    return user_name
-
-
-def get_valid_password():
-    """
-    Prompt the user for a password, does not accept blank passwords
-    Will ask the user to re-enter the password for verification
-    :return: Password after validation
-    """
-    valid_password = False
-
-    while not valid_password:
-        password_orig = input("Password: ")
-        # ensure no blank passwords
-        while not password_orig:
-            password_orig = input("Password: ")
-
-        # validate password
-        password_check = input("Re-enter password: ")
-        while password_orig != password_check and not password_check == "0":
-            print("Passwords do not match. Type 0 to enter a new password.")
-            password_check = input("Re-enter password: ")
-
-        if password_orig == password_check:
-            valid_password = True
-
-    return password_orig
-
-
-def hash_password(pwd):
-    """
-    :param pwd: the plaintext password
-    :return: tuple of (hashed password, salt)
-    """
-
-    salt = "abcdefghijklmmopqrstuvxyz"
-    hashed_password = hashlib.sha512(str(pwd + salt).encode("utf-8")).hexdigest()
-
-    return hashed_password, salt
+        self.account_caption = tkinter.Label(master, text="Create Account", font="Helvetica 14")
+        self.account_caption.grid(row=5, column=1, sticky="w")
+        self.username_label = tkinter.Label(master, text="Username")
+        self.username_label.grid(row=6, column=1, sticky="w", padx=10)
+        self.username_entry = tkinter.Entry(master)
+        self.username_entry .grid(row=7, column=1, sticky="w", padx=10)
+        self.password_label = tkinter.Label(master, text="Password")
+        self.password_label.grid(row=8, column=1, sticky="w", padx=10)
+        self.password_entry = tkinter.Entry(master)
+        self.password_entry.grid(row=9, column=1, sticky="w", padx=10)
+        self.confirm_label = tkinter.Label(master, text="Confirm Password")
+        self.confirm_label.grid(row=10, column=1, sticky="w", padx=10)
+        self.confirm_entry = tkinter.Entry(master)
+        self.confirm_entry.grid(row=11, column=1, sticky="w", padx=10)
+        self.save_button = tkinter.Button(master, text="Add Entry")
+        self.save_button.grid(row=12, column=1, sticky="e", pady=10)
+        self.clear_button = tkinter.Button(master, text="Clear")
+        self.clear_button.grid(row=12, column=2, sticky="w", padx=10)
+        self.debug_box = tkinter.scrolledtext.ScrolledText(master, width=20)
+        self.debug_box.grid(row=13, column=1, columnspan=2, sticky="we")
 
 
-def credentials_to_dictionary(file_path):
-    """
-    Reads credentials from file then stores them in a dictionary
-    Assumes that the format for each line is
-    username:password:salt
-    :param file_path: path to credentials file
-    :return: the dictionary containing credentials and salt
-    """
-    credential_dict = {}
-
-    try:
-        with open(file_path, "r") as file:
-            for line in file:
-                values = line.replace("\n", "").split(":")
-                credential_dict[values[0]] = values[1], values[2]
-    except OSError as e:
-        print("Could not read from file: {}. We will create a new one.".format(file_path))
-        pass
-
-    return credential_dict
+root = tkinter.Tk()
+root.geometry("200x400")
+root.title("Account Creator")
+app = UI(master=root)
+app.mainloop()
 
 
-def output_credentials(file_path, credentials_dict):
-    """
-    Open file and output credentials
-    :param file_path: path for credentials file
-    :param credentials_dict: the dictionary of user,pass and salt values in memory
-    """
-    # open file and output credentials
-    try:
-        with open(file_path, "w") as f:
-            for key, value in credentials_dict.items():
-                f.write("{}:{}:{}\n".format(key, value[0], value[1]))
-    except OSError as e:
-        print("Could not write to file: {}. Check you have permissions.".format(file_path))
-        # this could be better handled, could ask for an alternative filename to try
-        pass
-
-
-def add_to_dictionary(cred_dict, user, pwd, salt):
-    """
-    Simply adds the values to the dictionary, no return only side effects
-
-    :param cred_dict: the dictionary
-    :param user: username
-    :param pwd: hashed password
-    :param salt: the salt
-    """
-    cred_dict[user] = pwd, salt
-
-
-# Main
-# open and store password file
-password_file_path = input("Enter the filename where the credentials are stored: ")
-credentials_dictionary = credentials_to_dictionary(password_file_path)
-
-# prompt user for credentials
-username = get_valid_username(credentials_dictionary)
-password_and_salt = hash_password(get_valid_password())
-
-# add new credentials to dictionary and output
-add_to_dictionary(credentials_dictionary, username, password_and_salt[0], password_and_salt[1])
-output_credentials(password_file_path, credentials_dictionary)
